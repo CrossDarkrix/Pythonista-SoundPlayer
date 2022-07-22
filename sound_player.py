@@ -6,7 +6,7 @@ Mode = ''
 SoundMode = ''
 NowClosed = ['0']
 PlayMusicList = []
-_P = None
+MDirName = []
 LDirs = []
 LFiles = []
 
@@ -14,7 +14,7 @@ def __init__():
     os.makedirs(os.path.join(os.environ['HOME'], 'Documents', 'AudioFiles'), exist_ok=True)
 
 def ListView(ListsView):
-    global Path
+    global Path, MDirName
     try:
         if ListsView['ListFolders'].data_source.items[0] == '':
             del ListsView['ListFolders'].data_source.items[0]
@@ -46,19 +46,30 @@ def ListView(ListsView):
             else:
                 LFiles.append(Files)
         Musics = []
-        for MFile in sorted(LDirs + LFiles):
-            if MFile.split('.')[-1].lower() == 'mp3':
+        for MFile in MusicFileFinder(Path):
+            if os.path.isfile(MFile):
                 Musics.append(MFile)
-            if MFile.split('.')[-1].lower() == 'm4a':
-                Musics.append(MFile)
-            if MFile.split('.')[-1].lower() == 'flac':
-                Musics.append(MFile)
-            if MFile.split('.')[-1].lower() == 'wav':
-                Musics.append(MFile)
-        ListsView['ListFolders'].data_source.items = sorted(Musics)
+        MusicFiles = []
+        for MF in range(len(sorted(Musics))):
+            MDirName.append(str(sorted(Musics)[MF].split(sorted(Musics)[MF].split('/')[-1])[0]))
+            MusicFiles.append(str(sorted(Musics)[MF].split('/')[-1]))
+        ListsView['ListFolders'].data_source.items = MusicFiles
     except Exception as W:
         print(W)
         pass
+
+def MusicFileFinder(Dir):
+    for root, _, f, in os.walk(Dir):
+        yield root
+        for File in f:
+            if File.split('.')[-1].lower() == 'mp3':
+                yield os.path.join(root, File)
+            if File.split('.')[-1].lower() == 'm4a':
+                yield os.path.join(root, File)
+            if File.split('.')[-1].lower() == 'flac':
+                yield os.path.join(root, File)
+            if File.split('.')[-1].lower() == 'wav':
+                yield os.path.join(root, File)
 
 def Selector(s):
     global Mode
@@ -72,7 +83,7 @@ def Selector(s):
         pass
 
 def FileName(File):
-    global FileNames
+    global FileNames, FileIndex
     try:
         FileIndex = File.selected_row
         FileNames = File.items[FileIndex]
@@ -88,14 +99,14 @@ def ThreeDSoundMode(Moder):
         SoundMode = '立体音響をオフにする'
 
 def Play(_):
-    global _P, PlayMusicList
+    global PlayMusicList
     try:
         if Mode == '':
             Modes = False
         else:
             Modes = Mode
         if SoundMode == '立体音響をオンにする':
-            FilePath = os.path.join(Path, FileNames)
+            FilePath = os.path.join(MDirName[FileIndex], FileNames)
             PlayMusicList = [sound.Player('{}'.format(FilePath)) for _ in range(2)]
             for Play in PlayMusicList:
                 if Modes:
@@ -106,7 +117,7 @@ def Play(_):
                     Play.play()
                     time.sleep(0.023)
         elif SoundMode == '立体音響をオフにする':
-            FilePath = os.path.join(Path, FileNames)
+            FilePath = os.path.join(MDirName[FileIndex], FileNames)
             PlayMusicList = [sound.Player('{}'.format(FilePath)) for _ in range(1)]
             for Play in PlayMusicList:
                 if Modes:
@@ -115,7 +126,7 @@ def Play(_):
                 else:
                     Play.play()
         else:
-            FilePath = os.path.join(Path, FileNames)
+            FilePath = os.path.join(MDirName[FileIndex], FileNames)
             PlayMusicList = [sound.Player('{}'.format(FilePath)) for _ in range(1)]
             for Play in PlayMusicList:
                 if Modes:
@@ -154,7 +165,10 @@ class SeekBar(threading.Thread):
             try:
                 if NowClosed[0] == '0':
                     for Play in PlayMusicList:
-                        self._ui['SeekBar'].value = int(str(Play.current_time).split('.')[0]) /  int(str(Play.duration).split('.')[0])
+                        try:
+                            self._ui['SeekBar'].value = int(str(Play.current_time).split('.')[0]) /  int(str(Play.duration).split('.')[0])
+                        except:
+                            pass
                 else:
                     Stop('0')
                     quit()
